@@ -21,7 +21,7 @@ License at http://www.apache.org/licenses/LICENSE-2.0
 THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
 WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-MERCHANTABLITY OR NON-INFRINGEMENT.
+MERCHANTABILITY OR NON-INFRINGEMENT.
 See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
@@ -6431,7 +6431,7 @@ interface Ai_Cf_Qwen_Qwq_32B_Messages {
         };
     })[];
     /**
-     * JSON schema that should be fufilled for the response.
+     * JSON schema that should be fulfilled for the response.
      */
     guided_json?: object;
     /**
@@ -6697,7 +6697,7 @@ interface Ai_Cf_Mistralai_Mistral_Small_3_1_24B_Instruct_Messages {
         };
     })[];
     /**
-     * JSON schema that should be fufilled for the response.
+     * JSON schema that should be fulfilled for the response.
      */
     guided_json?: object;
     /**
@@ -6788,7 +6788,7 @@ interface Ai_Cf_Google_Gemma_3_12B_It_Prompt {
      */
     prompt: string;
     /**
-     * JSON schema that should be fufilled for the response.
+     * JSON schema that should be fulfilled for the response.
      */
     guided_json?: object;
     /**
@@ -6947,7 +6947,7 @@ interface Ai_Cf_Google_Gemma_3_12B_It_Messages {
         };
     })[];
     /**
-     * JSON schema that should be fufilled for the response.
+     * JSON schema that should be fulfilled for the response.
      */
     guided_json?: object;
     /**
@@ -7219,7 +7219,7 @@ interface Ai_Cf_Meta_Llama_4_Scout_17B_16E_Instruct_Messages {
     })[];
     response_format?: Ai_Cf_Meta_Llama_4_Scout_17B_16E_Instruct_JSON_Mode;
     /**
-     * JSON schema that should be fufilled for the response.
+     * JSON schema that should be fulfilled for the response.
      */
     guided_json?: object;
     /**
@@ -7449,7 +7449,7 @@ interface Ai_Cf_Meta_Llama_4_Scout_17B_16E_Instruct_Messages_Inner {
     })[];
     response_format?: Ai_Cf_Meta_Llama_4_Scout_17B_16E_Instruct_JSON_Mode;
     /**
-     * JSON schema that should be fufilled for the response.
+     * JSON schema that should be fulfilled for the response.
      */
     guided_json?: object;
     /**
@@ -8511,7 +8511,7 @@ interface Ai_Cf_Ai4Bharat_Indictrans2_En_Indic_1B_Input {
      */
     text: string | string[];
     /**
-     * Target langauge to translate to
+     * Target language to translate to
      */
     target_language: "asm_Beng" | "awa_Deva" | "ben_Beng" | "bho_Deva" | "brx_Deva" | "doi_Deva" | "eng_Latn" | "gom_Deva" | "gon_Deva" | "guj_Gujr" | "hin_Deva" | "hne_Deva" | "kan_Knda" | "kas_Arab" | "kas_Deva" | "kha_Latn" | "lus_Latn" | "mag_Deva" | "mai_Deva" | "mal_Mlym" | "mar_Deva" | "mni_Beng" | "mni_Mtei" | "npi_Deva" | "ory_Orya" | "pan_Guru" | "san_Deva" | "sat_Olck" | "snd_Arab" | "snd_Deva" | "tam_Taml" | "tel_Telu" | "urd_Arab" | "unr_Deva";
 }
@@ -10424,7 +10424,7 @@ interface IncomingRequestCfPropertiesTLSClientAuth {
      * @example "FAILED:self signed certificate"
      */
     certVerified: Exclude<CertVerificationStatus, "NONE">;
-    /** The presented certificate's revokation status.
+    /** The presented certificate's revocation status.
      *
      * - A value of `"1"` indicates the certificate has been revoked
      * - A value of `"0"` indicates the certificate has not been revoked
