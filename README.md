@@ -14,6 +14,28 @@ Returns a lightweight health response:
 }
 ```
 
+### `GET /health/tts`
+
+Runs a real synthesis through the `POST /tts` handler for `en-US-AvaMultilingualNeural` ("health check") and `zh-CN-XiaoxiaoNeural` ("健康检查") and reports each result. It returns `200` when every voice returned `audio/mpeg` with a non-empty body, otherwise `503`. Each probe times out after 15 seconds. Pass `?voice=<ShortName>` to probe a single voice instead.
+
+```json
+{
+  "ok": true,
+  "checks": [
+    {
+      "voice": "en-US-AvaMultilingualNeural",
+      "ok": true,
+      "status": 200,
+      "contentType": "audio/mpeg",
+      "bytes": 11232,
+      "durationMs": 605
+    }
+  ]
+}
+```
+
+`/health` only shows that the Worker is running, so uptime monitoring should poll `/health/tts`. From 2026-10-10 to 2026-10-16 every synthesis failed while `/health` and `/voices` kept returning `200`.
+
 ### `GET /voices`
 
 Returns the available Edge TTS voices:

@@ -18,6 +18,7 @@ vi.mock("../src/lib/tts", () => ({
 }));
 
 import worker from "../src/index";
+import { handleTtsHealth } from "../src/handlers/tts-health";
 
 const IncomingRequest = Request;
 
@@ -407,5 +408,190 @@ describe("worker routes", () => {
         message: "route not found",
       },
     });
+  });
+});
+
+function audioStream(...chunks: Uint8Array[]) {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(chunk);
+      }
+      controller.close();
+    },
+  });
+}
+
+describe("tts health probe", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    createAudioStreamMock.mockImplementation(async () =>
+      audioStream(new Uint8Array([1, 2, 3]))
+    );
+  });
+
+  it("synthesizes a short phrase with each default voice", async () => {
+    const response = await dispatch(
+      new IncomingRequest("https://example.com/health/tts")
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    expect(createAudioStreamMock).toHaveBeenCalledTimes(2);
+    expect(createAudioStreamMock).toHaveBeenCalledWith({
+      text: "health check",
+      voice: "en-US-AvaMultilingualNeural",
+    });
+    expect(createAudioStreamMock).toHaveBeenCalledWith({
+      text: "健康检查",
+      voice: "zh-CN-XiaoxiaoNeural",
+    });
+    expect(await response.json()).toEqual({
+      ok: true,
+      checks: [
+        {
+          voice: "en-US-AvaMultilingualNeural",
+          ok: true,
+          status: 200,
+          contentType: "audio/mpeg",
+          bytes: 3,
+          durationMs: expect.any(Number),
+        },
+        {
+          voice: "zh-CN-XiaoxiaoNeural",
+          ok: true,
+          status: 200,
+          contentType: "audio/mpeg",
+          bytes: 3,
+          durationMs: expect.any(Number),
+        },
+      ],
+    });
+  });
+
+  it("returns 503 when a voice fails to synthesize", async () => {
+    const upstreamError = new Error("WebSocket upgrade failed with status 403");
+    createAudioStreamMock.mockImplementation(async ({ voice }) => {
+      if (voice === "zh-CN-XiaoxiaoNeural") {
+        throw upstreamError;
+      }
+
+      return audioStream(new Uint8Array([1, 2, 3]));
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await dispatch(
+      new IncomingRequest("https://example.com/health/tts")
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      ok: false,
+      checks: [
+        {
+          voice: "en-US-AvaMultilingualNeural",
+          ok: true,
+          status: 200,
+          contentType: "audio/mpeg",
+          bytes: 3,
+          durationMs: expect.any(Number),
+        },
+        {
+          voice: "zh-CN-XiaoxiaoNeural",
+          ok: false,
+          status: 502,
+          contentType: "application/json; charset=utf-8",
+          bytes: expect.any(Number),
+          durationMs: expect.any(Number),
+        },
+      ],
+    });
+    expect(consoleError).toHaveBeenCalledWith(
+      "tts synthesis failed",
+      upstreamError
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      "tts health probe failed",
+      expect.objectContaining({ voice: "zh-CN-XiaoxiaoNeural", status: 502 })
+    );
+  });
+
+  it("fails a probe whose audio body is empty", async () => {
+    createAudioStreamMock.mockImplementation(async () => audioStream());
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await dispatch(
+      new IncomingRequest("https://example.com/health/tts")
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      checks: [
+        { ok: false, status: 200, contentType: "audio/mpeg", bytes: 0 },
+        { ok: false, status: 200, contentType: "audio/mpeg", bytes: 0 },
+      ],
+    });
+  });
+
+  it("probes a single voice passed in the query string", async () => {
+    const response = await dispatch(
+      new IncomingRequest(
+        "https://example.com/health/tts?voice=ja-JP-NanamiNeural"
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(createAudioStreamMock).toHaveBeenCalledTimes(1);
+    expect(createAudioStreamMock).toHaveBeenCalledWith({
+      text: "health check",
+      voice: "ja-JP-NanamiNeural",
+    });
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      checks: [{ voice: "ja-JP-NanamiNeural", ok: true }],
+    });
+  });
+
+  it("fails a probe that does not finish in time", async () => {
+    createAudioStreamMock.mockImplementation(
+      async () =>
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1]));
+          },
+        })
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await handleTtsHealth(
+      new IncomingRequest("https://example.com/health/tts"),
+      20
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      checks: [
+        { ok: false, status: 200, error: "timed out after 20 ms" },
+        { ok: false, status: 200, error: "timed out after 20 ms" },
+      ],
+    });
+  });
+
+  it("returns method not allowed for POST /health/tts", async () => {
+    const response = await dispatch(
+      new IncomingRequest("https://example.com/health/tts", {
+        method: "POST",
+      })
+    );
+
+    expect(response.status).toBe(405);
+    expect(createAudioStreamMock).not.toHaveBeenCalled();
   });
 });
