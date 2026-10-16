@@ -140,9 +140,11 @@ describe("createAudioStream", () => {
       "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1"
     );
     expect(String(url)).toContain("TrustedClientToken=");
-    expect(String(url)).toContain("Sec-MS-GEC=");
-    expect(String(url)).toContain("Sec-MS-GEC-Version=");
     expect(String(url)).toContain("ConnectionId=");
+    // A v1 token paired with a `1-` version is what made the handshake 403.
+    const params = new URL(String(url)).searchParams;
+    expect(params.get("Sec-MS-GEC-Version")).toMatch(/^2-\d+\./);
+    expect(params.get("Sec-MS-GEC")).toMatch(/^[0-9A-F]{16}-[0-9A-F]{64}$/);
     expect(init?.headers).toMatchObject({
       Upgrade: "websocket",
       "Sec-WebSocket-Version": "13",
@@ -282,8 +284,9 @@ describe("getVoices", () => {
       "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list"
     );
     expect(String(url)).toContain("trustedclienttoken=");
-    expect(String(url)).toContain("Sec-MS-GEC=");
-    expect(String(url)).toContain("Sec-MS-GEC-Version=");
+    const params = new URL(String(url)).searchParams;
+    expect(params.get("Sec-MS-GEC-Version")).toMatch(/^2-\d+\./);
+    expect(params.get("Sec-MS-GEC")).toMatch(/^[0-9A-F]{16}-[0-9A-F]{64}$/);
     expect(init?.headers).toMatchObject({
       Accept: "*/*",
       "Sec-Fetch-Mode": "cors",

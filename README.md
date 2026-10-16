@@ -152,6 +152,17 @@ npm run deploy
 
 This Worker does not rely on `edge-tts-universal` at runtime. It performs the voice-list fetch and WebSocket synthesis handshake directly inside the Worker runtime.
 
+### `Sec-MS-GEC` token version
+
+Microsoft validates the `Sec-MS-GEC` query parameter against the prefix of `Sec-MS-GEC-Version`, and rejects a mismatched pair with HTTP 403 on both synthesis hosts:
+
+| `Sec-MS-GEC-Version` | required `Sec-MS-GEC` value |
+| --- | --- |
+| `1-<chromium version>` | bare 64-hex SHA-256 |
+| `2-<chromium version>` | `<16 hex>-<64 hex>` (CS64 digest joined to a SHA-256 digest) |
+
+This Worker sends the `2-` pairing. `src/lib/drm.ts` builds the token and `test/drm.spec.ts` pins it against vectors from the `edge-tts` reference implementation: the digests are deliberately non-standard (patched SHA-256 round constants plus a CS64 mix), so Web Crypto cannot produce them and any drift breaks synthesis.
+
 ## Notes
 
 Observed remote validation result on 2026-04-10 with `wrangler 4.81.1`:
@@ -164,3 +175,11 @@ Observed remote validation result on 2026-04-10 with `wrangler 4.81.1`:
 - The `/tts` smoke test returned `200`, produced `/tmp/cloudflare-edge-tts-tts.headers`, and wrote an `audio/mpeg` body to `/tmp/cloudflare-edge-tts-tts.body`
 
 This means the current Worker-native implementation was verified successfully against both `wrangler dev --local` and `wrangler dev --remote` in this environment.
+
+Observed on 2026-10-16 with `wrangler 4.81.1`:
+
+- `POST /tts` began failing with `WebSocket upgrade failed with status 403` because the Worker sent a v1 token paired with a `1-` version
+- Both hosts were probed directly: the legacy host requires the `2-` pairing, and `api.msedgeservices.com` (which takes the token as `Ocp-Apim-Subscription-Key` rather than `TrustedClientToken`) accepts either pairing
+- After switching to the `2-` pairing, `GET /health`, `GET /voices`, and `POST /tts` were re-verified end to end against the live service in the real runtime: `POST /tts` returns `200`, `audio/mpeg`, and a body that `file` reports as `MPEG ADTS, layer III`
+
+One caveat about local development: `wrangler dev --local` was observed losing the upstream audio frames for some inputs, which surfaces as `502 failed to synthesize audio` whose underlying error is `no audio received`. The identical requests return `200` in the real runtime, so prefer `wrangler dev --remote` when checking synthesis locally.
