@@ -1,3 +1,5 @@
+import { generateSecMsGec } from "./sec-ms-gec";
+
 export const DEFAULT_VOICE = "en-US-AvaMultilingualNeural";
 
 const READALOUD_BASE =
@@ -7,7 +9,7 @@ const VOICE_LIST_URL = `https://${READALOUD_BASE}/voices/list?trustedclienttoken
 const SYNTHESIS_URL = `https://${READALOUD_BASE}/edge/v1`;
 const CHROMIUM_FULL_VERSION = "143.0.3650.75";
 const CHROMIUM_MAJOR_VERSION = CHROMIUM_FULL_VERSION.split(".")[0];
-const SEC_MS_GEC_VERSION = `1-${CHROMIUM_FULL_VERSION}`;
+const SEC_MS_GEC_VERSION = `2-${CHROMIUM_FULL_VERSION}`;
 const AUDIO_FORMAT = "audio-24khz-48kbitrate-mono-mp3";
 
 const BASE_HEADERS = {
@@ -120,25 +122,6 @@ function makeMuid(runtime: TtsRuntime) {
   const bytes = new Uint8Array(16);
   runtime.crypto.getRandomValues(bytes);
   return Array.from(bytes)
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
-}
-
-async function makeSecMsGec(runtime: TtsRuntime) {
-  const winEpoch = 11644473600;
-  const secondsToNs = 1e9;
-  let ticks = Date.now() / 1000;
-  ticks += winEpoch;
-  ticks -= ticks % 300;
-  ticks *= secondsToNs / 100;
-  const payload = `${ticks.toFixed(0)}${TRUSTED_CLIENT_TOKEN}`;
-  const digest = await runtime.crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(payload)
-  );
-
-  return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("")
     .toUpperCase();
@@ -417,7 +400,7 @@ export async function createAudioStream(
   { text, voice }: TtsInput,
   runtime: TtsRuntime = defaultRuntime()
 ): Promise<ReadableStream<Uint8Array>> {
-  const secMsGec = await makeSecMsGec(runtime);
+  const secMsGec = generateSecMsGec(TRUSTED_CLIENT_TOKEN);
   const connectionId = makeConnectionId(runtime);
   const websocketUrl = buildSynthesisUrl(secMsGec, connectionId);
   const response = (await runtime.fetch(websocketUrl, {
@@ -442,7 +425,7 @@ export async function createAudioStream(
 export async function getVoices(
   runtime: TtsRuntime = defaultRuntime()
 ): Promise<Voice[]> {
-  const secMsGec = await makeSecMsGec(runtime);
+  const secMsGec = generateSecMsGec(TRUSTED_CLIENT_TOKEN);
   const url = `${VOICE_LIST_URL}&Sec-MS-GEC=${secMsGec}&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}`;
   let response: Response;
 

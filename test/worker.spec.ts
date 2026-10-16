@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/vitest-pool-workers/types" />
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createExecutionContext,
   waitOnExecutionContext,
@@ -45,6 +45,10 @@ const sampleVoices = [
 ];
 
 describe("worker routes", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     getVoicesMock.mockResolvedValue(sampleVoices);
@@ -78,7 +82,9 @@ describe("worker routes", () => {
   });
 
   it("returns upstream error when voices fetch fails", async () => {
-    getVoicesMock.mockRejectedValueOnce(new Error("upstream failed"));
+    const upstreamError = new Error("upstream failed");
+    getVoicesMock.mockRejectedValueOnce(upstreamError);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await dispatch(
       new IncomingRequest("https://example.com/voices")
@@ -91,6 +97,10 @@ describe("worker routes", () => {
         message: "failed to fetch voices",
       },
     });
+    expect(consoleError).toHaveBeenCalledWith(
+      "voice list fetch failed",
+      upstreamError
+    );
   });
 
   it("returns audio stream for valid tts requests", async () => {
@@ -288,7 +298,9 @@ describe("worker routes", () => {
   });
 
   it("returns upstream error when tts synthesis fails before streaming starts", async () => {
-    createAudioStreamMock.mockRejectedValueOnce(new Error("upstream failed"));
+    const upstreamError = new Error("WebSocket upgrade failed with status 403");
+    createAudioStreamMock.mockRejectedValueOnce(upstreamError);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await dispatch(
       new IncomingRequest("https://example.com/tts", {
@@ -309,16 +321,22 @@ describe("worker routes", () => {
         message: "failed to synthesize audio",
       },
     });
+    expect(consoleError).toHaveBeenCalledWith(
+      "tts synthesis failed",
+      upstreamError
+    );
   });
 
   it("returns upstream error when the first audio chunk read fails", async () => {
+    const streamError = new Error("stream failed");
     createAudioStreamMock.mockResolvedValueOnce(
       new ReadableStream<Uint8Array>({
         pull(controller) {
-          controller.error(new Error("stream failed"));
+          controller.error(streamError);
         },
       })
     );
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await dispatch(
       new IncomingRequest("https://example.com/tts", {
@@ -339,6 +357,10 @@ describe("worker routes", () => {
         message: "failed to synthesize audio",
       },
     });
+    expect(consoleError).toHaveBeenCalledWith(
+      "tts synthesis failed",
+      streamError
+    );
   });
 
   it("answers CORS preflight requests", async () => {

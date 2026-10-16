@@ -7,20 +7,12 @@ import {
   type TtsRuntime,
 } from "../src/lib/tts";
 
-function createDigestBytes() {
-  return Uint8Array.from(
-    { length: 32 },
-    (_, index) => (index + 1) & 0xff
-  ).buffer;
-}
+const SEC_MS_GEC_V2_PATTERN = /^[0-9A-F]{16}-[0-9A-F]{64}$/;
 
 function createRuntime(fetchImpl: TtsRuntime["fetch"]): TtsRuntime {
   return {
     fetch: fetchImpl,
     crypto: {
-      subtle: {
-        digest: vi.fn().mockResolvedValue(createDigestBytes()),
-      },
       getRandomValues: vi.fn((array: Uint8Array) => {
         for (let index = 0; index < array.length; index += 1) {
           array[index] = (index + 17) & 0xff;
@@ -139,10 +131,15 @@ describe("createAudioStream", () => {
     expect(String(url)).toContain(
       "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1"
     );
-    expect(String(url)).toContain("TrustedClientToken=");
-    expect(String(url)).toContain("Sec-MS-GEC=");
-    expect(String(url)).toContain("Sec-MS-GEC-Version=");
-    expect(String(url)).toContain("ConnectionId=");
+    const searchParams = new URL(String(url)).searchParams;
+    expect(searchParams.get("TrustedClientToken")).toBe(
+      "6A5AA1D4EAFF4E9FB37E23D68491D6F4"
+    );
+    expect(searchParams.get("Sec-MS-GEC")).toMatch(SEC_MS_GEC_V2_PATTERN);
+    expect(searchParams.get("Sec-MS-GEC-Version")).toBe("2-143.0.3650.75");
+    expect(searchParams.get("ConnectionId")).toBe(
+      "1234567890ab4def81234567890abcde"
+    );
     expect(init?.headers).toMatchObject({
       Upgrade: "websocket",
       "Sec-WebSocket-Version": "13",
@@ -281,9 +278,12 @@ describe("getVoices", () => {
     expect(String(url)).toContain(
       "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list"
     );
-    expect(String(url)).toContain("trustedclienttoken=");
-    expect(String(url)).toContain("Sec-MS-GEC=");
-    expect(String(url)).toContain("Sec-MS-GEC-Version=");
+    const searchParams = new URL(String(url)).searchParams;
+    expect(searchParams.get("trustedclienttoken")).toBe(
+      "6A5AA1D4EAFF4E9FB37E23D68491D6F4"
+    );
+    expect(searchParams.get("Sec-MS-GEC")).toMatch(SEC_MS_GEC_V2_PATTERN);
+    expect(searchParams.get("Sec-MS-GEC-Version")).toBe("2-143.0.3650.75");
     expect(init?.headers).toMatchObject({
       Accept: "*/*",
       "Sec-Fetch-Mode": "cors",
