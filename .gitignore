@@ -1,5 +1,6 @@
 node_modules
 .wrangler
+.cloudflare
 coverage
 dist
 .DS_Store

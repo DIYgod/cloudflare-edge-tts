@@ -75,6 +75,12 @@ Validation and error behavior:
 - Rejects empty `voice` strings
 - Returns `502` when the upstream TTS request fails before the audio response starts, for example before or while priming the first chunk
 
+## Configuration
+
+The Worker is configured in `cloudflare.config.ts` and is built, run locally and deployed with Cloudflare's [`cf` CLI](https://developers.cloudflare.com/cf/), a dev dependency that uses the project's Wrangler as its bundler.
+
+`wrangler.jsonc` stays for the tools that still read it: remote development (`npm run dev`, since `cf dev` has no remote mode), the Vitest Workers pool and `wrangler tail`. Keep its name, account, compatibility date and `workers_dev` setting in sync with `cloudflare.config.ts`.
+
 ## Setup
 
 Install dependencies:
@@ -83,7 +89,7 @@ Install dependencies:
 npm install
 ```
 
-Generate Worker environment types:
+Generate Worker environment types into `.cloudflare/types/index.d.ts` (`npm run typecheck` also regenerates them):
 
 ```bash
 npm run cf-typegen
@@ -91,13 +97,13 @@ npm run cf-typegen
 
 ## Development
 
-Remote runtime development with Cloudflare:
+Remote runtime development with Cloudflare (`wrangler dev --remote`):
 
 ```bash
 npm run dev
 ```
 
-Local runtime development:
+Local runtime development (`cf dev`):
 
 ```bash
 npm run dev:local
@@ -164,17 +170,19 @@ Expected checks:
 
 ## Deployment
 
-Deploy the Worker:
+Deploy the Worker with `cf deploy`:
 
 ```bash
 npm run deploy
 ```
 
+`cf` authenticates with `CLOUDFLARE_API_TOKEN` and does not reuse a Wrangler login. `cf deploy --dry-run` builds the Worker and lists what it would deploy without uploading anything.
+
 ## Implementation Note
 
 This Worker does not rely on `edge-tts-universal` at runtime. It performs the voice-list fetch and WebSocket synthesis handshake directly inside the Worker runtime.
 
-Upstream requests carry a v2 `Sec-MS-GEC` token with `Sec-MS-GEC-Version=2-<Edge version>`, generated in `src/lib/sec-ms-gec.ts` (ported from edge-tts 7.3). Since 2026-10-10 the synthesis WebSocket rejects the old v1 token, a plain SHA-256 digest, with HTTP 403, which reached clients as `502 TTS_UPSTREAM_ERROR` while `/voices` kept working. Upstream failures are logged with `console.error`, so `wrangler tail` shows the cause behind a 502.
+Upstream requests carry a v2 `Sec-MS-GEC` token with `Sec-MS-GEC-Version=2-<Edge version>`, generated in `src/lib/sec-ms-gec.ts` (ported from edge-tts 7.3). Since 2026-10-10 the synthesis WebSocket rejects the old v1 token, a plain SHA-256 digest, with HTTP 403, which reached clients as `502 TTS_UPSTREAM_ERROR` while `/voices` kept working. Upstream failures are logged with `console.error`, so `wrangler tail cloudflare-edge-tts` shows the cause behind a 502 (`cf` cannot stream live logs yet).
 
 ## Notes
 

@@ -1,4 +1,7 @@
 {
+  // cf builds and deploys from cloudflare.config.ts. Wrangler still reads this
+  // file for `wrangler dev --remote` (npm run dev), the Vitest Workers pool and
+  // `wrangler tail`, so keep it in sync with cloudflare.config.ts.
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "cloudflare-edge-tts",
   "main": "src/index.ts",

@@ -6,6 +6,6 @@
   },
   "include": [
     "./**/*.ts",
-    "../worker-configuration.d.ts"
+    "../.cloudflare/types"
   ]
 }
